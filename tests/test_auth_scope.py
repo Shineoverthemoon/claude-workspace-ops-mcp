@@ -111,3 +111,25 @@ def test_client_secrets_missing_is_an_actionable_error(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError) as exc:
         settings_with(tmp_path).require_google_credentials()
     assert exc.value.context["env_var"] == "CWOPS_GOOGLE_CLIENT_SECRETS"
+
+
+def test_auth_can_bootstrap_before_the_google_backend_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Regression: `cwops auth` must not need a container.
+
+    Building the Google backend requires working credentials, so routing auth
+    through the container would deadlock on the very first run.
+    """
+    from cwops.cli import main
+
+    monkeypatch.setenv("CWOPS_DRIVE_BACKEND", "google")
+    monkeypatch.setenv("CWOPS_TOKEN_PATH", str(tmp_path / "token.json"))
+    monkeypatch.setenv("CWOPS_GOOGLE_CLIENT_SECRETS", str(tmp_path / "client_secret.json"))
+    monkeypatch.setattr(
+        "cwops.drive.auth.load_credentials",
+        lambda settings, allow_interactive=True: SimpleNamespace(scopes=[DRIVE_FILE_SCOPE]),
+    )
+
+    assert main(["auth"]) == 0
+    assert DRIVE_FILE_SCOPE in capsys.readouterr().out

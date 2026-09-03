@@ -118,10 +118,17 @@ def cmd_audit(container: Container, args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_auth(container: Container, args: argparse.Namespace) -> int:
+def cmd_auth(container: Container | None, args: argparse.Namespace) -> int:
+    """Authorize with Google.
+
+    Runs without building a container on purpose: with
+    CWOPS_DRIVE_BACKEND=google the container construction itself requires
+    working credentials, so bootstrapping auth through it would deadlock on
+    the very first run.
+    """
     from .drive.auth import load_credentials
 
-    settings = container.settings
+    settings = load_settings()
     credentials = load_credentials(settings, allow_interactive=True)
     print(f"Authorized. Scopes granted: {credentials.scopes}")
     print(f"Token stored at {settings.token_path} (owner read/write only).")
@@ -344,7 +351,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo.set_defaults(func=cmd_demo, needs_container=False)
 
     auth = sub.add_parser("auth", help="Authorize with Google (drive.file scope only)")
-    auth.set_defaults(func=cmd_auth)
+    # Must not need a container: the Google backend cannot be built until this
+    # command has produced the credentials it would require.
+    auth.set_defaults(func=cmd_auth, needs_container=False)
 
     workspace = sub.add_parser("workspace", help="Create or seed the app-owned workspace")
     workspace.add_argument("action", choices=["init", "seed"])
