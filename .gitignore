@@ -1,0 +1,74 @@
+# =============================================================================
+# Secrets and credentials - never commit
+# =============================================================================
+.env
+.env.*
+!.env.example
+
+# Google OAuth client secrets. Google's own quickstarts variously name this
+# download client_secret_*.json OR credentials.json - both are covered.
+client_secret*.json
+credentials.json
+service-account*.json
+service_account*.json
+
+# OAuth tokens produced by `cwops auth` (default: .cwops/token.json)
+*token.json
+token*.json
+.cwops/
+
+# Keys of any kind
+*.pem
+*.key
+*.p12
+*.pfx
+
+# =============================================================================
+# Local runtime state - machine-specific, may contain file names and IDs
+# =============================================================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+audit*.jsonl
+*.log
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Test / lint / type caches and generated reports
+.pytest_cache/
+.pytest-tmp/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# =============================================================================
+# Editor / OS / tooling - machine-specific
+# =============================================================================
+.claude/settings.local.json
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

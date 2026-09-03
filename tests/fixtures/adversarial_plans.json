@@ -1,0 +1,135 @@
+{
+  "_comment": "Plans a compromised or confused model might emit. Each must be rejected with the stated reason code. These are the regression tests for 'model output is untrusted input'.",
+  "cases": [
+    {
+      "name": "hallucinated_file_id",
+      "expect": "unknown_file",
+      "ops": [{ "op": "rename", "file_id": "f-does-not-exist", "new_name": "Invoice.pdf" }]
+    },
+    {
+      "name": "path_traversal_in_folder_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "create_folder", "ref": "#escape", "name": "../../etc", "parent_id": "root-workspace" }]
+    },
+    {
+      "name": "backslash_traversal_in_folder_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "create_folder", "ref": "#escape", "name": "..\\Windows", "parent_id": "root-workspace" }]
+    },
+    {
+      "name": "dotdot_folder_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "create_folder", "ref": "#up", "name": "..", "parent_id": "root-workspace" }]
+    },
+    {
+      "name": "control_character_in_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "rename", "file_id": "f-inv-q1", "new_name": "Invoice\u0007.pdf" }]
+    },
+    {
+      "name": "leading_space_in_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "rename", "file_id": "f-inv-q1", "new_name": " Invoice.pdf" }]
+    },
+    {
+      "name": "trailing_dot_in_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "create_folder", "ref": "#dot", "name": "Invoices.", "parent_id": "root-workspace" }]
+    },
+    {
+      "name": "empty_name",
+      "expect": "invalid_name",
+      "ops": [{ "op": "rename", "file_id": "f-inv-q1", "new_name": "   " }]
+    },
+    {
+      "name": "ungranted_file_target",
+      "expect": "not_granted",
+      "ops": [{ "op": "rename", "file_id": "f-not-granted", "new_name": "Renamed.pdf" }]
+    },
+    {
+      "name": "file_outside_the_workspace",
+      "expect": "unverifiable_parent",
+      "ops": [{ "op": "rename", "file_id": "f-outside-workspace", "new_name": "Mine Now" }]
+    },
+    {
+      "name": "move_to_unknown_destination",
+      "expect": "unknown_file",
+      "ops": [{ "op": "move", "file_id": "f-inv-q1", "new_parent_id": "fol-somewhere-else" }]
+    },
+    {
+      "name": "move_into_a_non_folder",
+      "expect": "not_a_folder",
+      "ops": [{ "op": "move", "file_id": "f-inv-q1", "new_parent_id": "f-inv-q2" }]
+    },
+    {
+      "name": "undeclared_ref",
+      "expect": "unknown_ref",
+      "ops": [{ "op": "move", "file_id": "f-inv-q1", "new_parent_id": "#never-created" }]
+    },
+    {
+      "name": "forward_reference_to_later_folder",
+      "expect": "unknown_ref",
+      "ops": [
+        { "op": "move", "file_id": "f-inv-q1", "new_parent_id": "#invoices" },
+        { "op": "create_folder", "ref": "#invoices", "name": "Invoices", "parent_id": "root-workspace" }
+      ]
+    },
+    {
+      "name": "duplicate_ref",
+      "expect": "duplicate_ref",
+      "ops": [
+        { "op": "create_folder", "ref": "#dup", "name": "Invoices", "parent_id": "root-workspace" },
+        { "op": "create_folder", "ref": "#dup", "name": "Receipts", "parent_id": "root-workspace" }
+      ]
+    },
+    {
+      "name": "same_file_moved_twice",
+      "expect": "duplicate_target",
+      "ops": [
+        { "op": "move", "file_id": "f-inv-q1", "new_parent_id": "fol-archive" },
+        { "op": "move", "file_id": "f-inv-q1", "new_parent_id": "fol-inbox" }
+      ]
+    },
+    {
+      "name": "same_file_renamed_twice",
+      "expect": "duplicate_target",
+      "ops": [
+        { "op": "rename", "file_id": "f-inv-q1", "new_name": "A.pdf" },
+        { "op": "rename", "file_id": "f-inv-q1", "new_name": "B.pdf" }
+      ]
+    },
+    {
+      "name": "rename_the_workspace_root",
+      "expect": "root_immutable",
+      "ops": [{ "op": "rename", "file_id": "root-workspace", "new_name": "Everything" }]
+    },
+    {
+      "name": "move_the_workspace_root",
+      "expect": "root_immutable",
+      "ops": [{ "op": "move", "file_id": "root-workspace", "new_parent_id": "fol-inbox" }]
+    },
+    {
+      "name": "folder_into_itself",
+      "expect": "cycle",
+      "ops": [{ "op": "move", "file_id": "fol-inbox", "new_parent_id": "fol-inbox" }]
+    },
+    {
+      "name": "folder_into_its_own_descendant",
+      "expect": "cycle",
+      "ops": [{ "op": "move", "file_id": "fol-archive", "new_parent_id": "fol-archive-2025" }]
+    },
+    {
+      "name": "folder_into_a_new_subfolder_of_itself",
+      "expect": "cycle",
+      "ops": [
+        { "op": "create_folder", "ref": "#nested", "name": "Nested", "parent_id": "fol-archive-2025" },
+        { "op": "move", "file_id": "fol-archive", "new_parent_id": "#nested" }
+      ]
+    },
+    {
+      "name": "new_folder_under_an_ungranted_parent",
+      "expect": "not_granted",
+      "ops": [{ "op": "create_folder", "ref": "#hr", "name": "HR", "parent_id": "f-not-granted" }]
+    }
+  ]
+}

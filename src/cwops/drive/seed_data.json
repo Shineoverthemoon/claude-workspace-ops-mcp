@@ -1,0 +1,231 @@
+{
+  "_comment": "Deterministic demo/test workspace. Shipped in the package because CWOPS_DRIVE_BACKEND=fake is a real runtime mode, not just a test double. 'granted' models the drive.file grant set: anything absent from it is invisible to the app, exactly as Google behaves.",
+  "root_folder_id": "root-workspace",
+  "granted": [
+    "root-workspace",
+    "fol-inbox",
+    "fol-archive",
+    "fol-archive-2025",
+    "f-inv-q1",
+    "f-inv-q1-copy",
+    "f-inv-q1-1",
+    "f-inv-q2",
+    "f-contract",
+    "f-contract-dup",
+    "f-notes",
+    "f-notes-dup",
+    "f-budget",
+    "f-photo",
+    "f-photo-final",
+    "f-readme",
+    "f-spec",
+    "f-spec-archived",
+    "f-receipt",
+    "f-tax",
+    "f-trashed",
+    "f-outside-workspace"
+  ],
+  "files": [
+    {
+      "id": "root-workspace",
+      "name": "Claude Workspace Ops",
+      "mime_type": "application/vnd.google-apps.folder",
+      "parents": [],
+      "modified_time": "2026-01-01T09:00:00+00:00"
+    },
+    {
+      "id": "fol-inbox",
+      "name": "Inbox",
+      "mime_type": "application/vnd.google-apps.folder",
+      "parents": ["root-workspace"],
+      "modified_time": "2026-01-02T09:00:00+00:00"
+    },
+    {
+      "id": "fol-archive",
+      "name": "Archive",
+      "mime_type": "application/vnd.google-apps.folder",
+      "parents": ["root-workspace"],
+      "modified_time": "2026-01-02T09:05:00+00:00"
+    },
+    {
+      "id": "fol-archive-2025",
+      "name": "2025",
+      "mime_type": "application/vnd.google-apps.folder",
+      "parents": ["fol-archive"],
+      "modified_time": "2026-01-02T09:06:00+00:00"
+    },
+
+    {
+      "id": "f-inv-q1",
+      "name": "Invoice Q1 2026.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 120340,
+      "md5_checksum": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "modified_time": "2026-01-05T10:00:00+00:00"
+    },
+    {
+      "id": "f-inv-q1-copy",
+      "name": "Copy of Invoice Q1 2026.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 120340,
+      "md5_checksum": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "modified_time": "2026-01-06T10:00:00+00:00"
+    },
+    {
+      "id": "f-inv-q1-1",
+      "name": "Invoice Q1 2026 (1).pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 120340,
+      "md5_checksum": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+      "modified_time": "2026-01-07T10:00:00+00:00"
+    },
+    {
+      "id": "f-inv-q2",
+      "name": "Invoice Q2 2026.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 118002,
+      "md5_checksum": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+      "modified_time": "2026-04-05T10:00:00+00:00"
+    },
+    {
+      "id": "f-contract",
+      "name": "Vendor Contract - Acme.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 88123,
+      "md5_checksum": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "modified_time": "2026-02-11T10:00:00+00:00"
+    },
+    {
+      "id": "f-contract-dup",
+      "name": "Vendor Contract - Acme copy.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-archive"],
+      "size": 88123,
+      "md5_checksum": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+      "modified_time": "2026-02-12T10:00:00+00:00"
+    },
+    {
+      "id": "f-notes",
+      "name": "Meeting Notes 2026-01-14",
+      "mime_type": "application/vnd.google-apps.document",
+      "parents": ["fol-inbox"],
+      "modified_time": "2026-01-14T16:00:00+00:00"
+    },
+    {
+      "id": "f-notes-dup",
+      "name": "Meeting Notes 2026-01-14 (1)",
+      "mime_type": "application/vnd.google-apps.document",
+      "parents": ["fol-inbox"],
+      "modified_time": "2026-01-14T16:30:00+00:00"
+    },
+    {
+      "id": "f-budget",
+      "name": "FY26 Budget Model",
+      "mime_type": "application/vnd.google-apps.spreadsheet",
+      "parents": ["fol-inbox"],
+      "modified_time": "2026-03-01T11:00:00+00:00"
+    },
+    {
+      "id": "f-photo",
+      "name": "team-photo.png",
+      "mime_type": "image/png",
+      "parents": ["fol-inbox"],
+      "size": 2048811,
+      "md5_checksum": "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+      "modified_time": "2026-01-20T12:00:00+00:00"
+    },
+    {
+      "id": "f-photo-final",
+      "name": "team-photo-final.png",
+      "mime_type": "image/png",
+      "parents": ["fol-inbox"],
+      "size": 2048811,
+      "md5_checksum": "e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5",
+      "modified_time": "2026-01-21T12:00:00+00:00"
+    },
+    {
+      "id": "f-readme",
+      "name": "README.txt",
+      "mime_type": "text/plain",
+      "parents": ["root-workspace"],
+      "size": 512,
+      "md5_checksum": "f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6",
+      "modified_time": "2026-01-01T09:30:00+00:00"
+    },
+    {
+      "id": "f-spec",
+      "name": "Product Spec v3.docx",
+      "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "parents": ["fol-inbox"],
+      "size": 44100,
+      "md5_checksum": "07070707070707070707070707070707",
+      "modified_time": "2026-02-20T09:00:00+00:00"
+    },
+    {
+      "id": "f-spec-archived",
+      "name": "Product Spec v3.docx",
+      "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "parents": ["fol-archive"],
+      "size": 44100,
+      "md5_checksum": "07070707070707070707070707070707",
+      "modified_time": "2026-02-19T09:00:00+00:00"
+    },
+    {
+      "id": "f-receipt",
+      "name": "receipt-2026-02-01.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 9001,
+      "md5_checksum": "18181818181818181818181818181818",
+      "modified_time": "2026-02-01T18:00:00+00:00"
+    },
+    {
+      "id": "f-tax",
+      "name": "Tax Return 2025.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 300123,
+      "md5_checksum": "29292929292929292929292929292929",
+      "modified_time": "2026-04-14T20:00:00+00:00"
+    },
+    {
+      "id": "f-trashed",
+      "name": "Old Draft.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 1200,
+      "md5_checksum": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a",
+      "trashed": true,
+      "modified_time": "2025-11-01T08:00:00+00:00"
+    },
+
+    {
+      "id": "f-outside-workspace",
+      "name": "Shared Doc From Colleague",
+      "mime_type": "application/vnd.google-apps.document",
+      "parents": ["other-root"],
+      "modified_time": "2026-03-10T14:00:00+00:00"
+    },
+    {
+      "id": "f-not-granted",
+      "name": "Confidential HR Review.pdf",
+      "mime_type": "application/pdf",
+      "parents": ["fol-inbox"],
+      "size": 15000,
+      "md5_checksum": "4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b",
+      "modified_time": "2026-03-15T10:00:00+00:00"
+    }
+  ],
+  "contents": {
+    "f-notes": "Weekly sync 2026-01-14. Attendees: platform team. Topics: Q1 invoicing backlog, vendor renewal for Acme, hiring plan. Action: finance to reconcile duplicate invoices.",
+    "f-notes-dup": "Weekly sync 2026-01-14. Attendees: platform team. Topics: Q1 invoicing backlog, vendor renewal for Acme, hiring plan. Action: finance to reconcile duplicate invoices.",
+    "f-budget": "FY26 operating budget model. Sheets: Headcount, Vendor Spend, Cloud Costs.",
+    "f-readme": "Demo workspace for Claude Workspace Ops MCP. Everything here was created by the app under the drive.file scope.",
+    "f-outside-workspace": "Notes shared by a colleague and opened with this app. Reachable, but outside the managed workspace."
+  }
+}
