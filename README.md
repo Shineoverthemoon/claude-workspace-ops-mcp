@@ -1,16 +1,93 @@
 # Claude Workspace Ops MCP
 
-An MCP server that lets an AI agent tidy a Google Drive workspace — without ever
-giving it the authority to do so unsupervised.
+A Python **MCP server for AI-assisted Google Drive organization**. Claude can
+inspect a workspace and propose how to tidy it; deterministic Python and an
+explicit human approval decide what actually happens.
 
 The interesting part is not that Claude can propose a folder structure. It's
 that **a fully compromised model cannot cause an unsafe write**, and the tests
 prove it rather than assert it.
 
+`Python 3.11+` · `MCP` · `Google Drive API` · `OAuth drive.file` · `Anthropic API`
+· `Pydantic` · `SQLite` · `pytest` · `ruff` · `mypy`
+
 ```
-Agent proposes  ──▶  Deterministic validator  ──▶  Human approves (separate process)  ──▶  Apply
-   (may lie)            (cannot be argued with)         (no tool can do this)
+ ┌────────────── model trust zone ──────────────┐   ┌──── human trust zone ────┐
+ │  inspect ▶ propose ▶ deterministic validation│   │ cwops approve (TTY only) │
+ └───────────────────────┬──────────────────────┘   └────────────┬─────────────┘
+                         │     no MCP tool can approve           │
+                         └──────────▶ apply_proposal ◀───────────┘
+                                            │  single-use · plan-hash bound · expiring
+                                            ▼
+                              Google Drive  +  append-only audit log
 ```
+
+Non-interactive approval **fails closed**: `cwops approve` refuses to run when
+stdin is not a terminal, `--yes` included, so a shell-capable agent cannot
+manufacture a human decision.
+
+---
+
+## Engineering highlights
+
+Designed and built solo — the MCP server, the Drive and Anthropic integrations,
+the validator, the approval gate, the storage layer, the fakes and the test
+suite. Third-party runtime code is limited to the MCP SDK, the Google and
+Anthropic clients, Pydantic and SQLite.
+
+- **MCP server** — nine typed tools; the published JSON Schema is derived from
+  Pydantic models and pinned by a golden-snapshot test, so a contract change is
+  a reviewed diff. stdio transport, with all logging on stderr so a stray print
+  cannot corrupt the JSON-RPC stream.
+- **Google Drive API integration** — installed-app OAuth flow, bounded jittered
+  retry, escaped query values, and a 404 that is never retried.
+- **Least-privilege scope** — `drive.file` is hard-coded; a stored token
+  carrying anything broader is rejected at load time.
+- **Deterministic validation** — pure functions over a fetched snapshot. Unknown
+  IDs, ungranted targets, path separators, cycles and anything outside the
+  app-owned root are *rejected, never repaired*.
+- **Proposal / dry-run workflow** — plans are stored, hashed, previewed in plain
+  language, and re-validated against live Drive state at apply time.
+- **Approval outside the MCP/model trust zone** — an approval row is created by
+  one CLI command in a separate process; no tool creates one.
+- **TTY-enforced approval boundary** — that CLI fails closed without an
+  interactive terminal, and `--yes` cannot bypass the check.
+- **Plan-hash binding, expiry, single use** — approvals are tied to a SHA-256 of
+  the exact operation list, TTL-limited, and claimed by one atomic guarded
+  `UPDATE`, with an explicit lifecycle state
+  (`none · active · consumed · expired · superseded`).
+- **Append-only audit log** — one row per tool call and per CLI action, with
+  correlation IDs, reason codes on refusal, and secret scrubbing on the way in.
+- **Duplicate detection** — checksum-exact vs. metadata-heuristic, with
+  Google-native files reported as *unscannable* rather than silently unique.
+- **Fakes at the Protocol seams** — a fake Drive and a fake organizer make the
+  entire suite deterministic and offline. No mocking library, no network.
+
+---
+
+## Validated against real Google Drive
+
+The gates are not only exercised against the fakes. A full end-to-end run with
+`CWOPS_DRIVE_BACKEND=google` against a live Google account:
+
+| Check | Result |
+|---|---|
+| OAuth consent | granted `drive.file` **only** |
+| Files this app created | reachable |
+| An unrelated pre-existing Drive file | **not reachable** — outside the grant |
+| Workspace seeded | 6 files |
+| Duplicate detection | the exact duplicate pair found by checksum |
+| `propose_organization` | 11 operations — 5 folder creations + 6 moves |
+| Approval | given by a human, through `cwops approve` in a terminal |
+| `apply_proposal` | executed the exact hash-bound plan it was approved for |
+| Outcome | **11/11 operations succeeded**; 6 files organized into 5 folders |
+| Duplicate pair | both copies preserved — nothing was deleted |
+| Destructive actions | none occurred; none exist to call |
+| Audit trail | distinct `cli` (approve) and `mcp_client` (apply) actors recorded |
+
+The TTY boundary was verified against the installed Windows CLI as well: a
+non-interactive invocation is refused with `approval_not_interactive`, while a
+real terminal reaches the proposal lookup normally.
 
 ---
 
@@ -44,6 +121,8 @@ ask; it cannot produce.
 ## Try it in 30 seconds, with no Google account
 
 ```bash
+git clone https://github.com/Shineoverthemoon/claude-workspace-ops-mcp
+cd claude-workspace-ops-mcp
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"   # Windows: .venv\Scripts\pip
 cwops demo
 ```
@@ -105,7 +184,7 @@ copies that `checksum` structurally cannot.
 
 ---
 
-## Running it against real Google Drive
+## Running it against your own Google Drive
 
 ```bash
 cp .env.example .env          # then edit
@@ -116,10 +195,13 @@ cwops workspace seed          # optional: demo files, incl. an exact duplicate p
 ```
 
 You need a Google Cloud project with the Drive API enabled and an **OAuth client
-ID of type "Desktop app"**, downloaded as `client_secret.json`. Because
-`drive.file` is non-sensitive, **no verification review is required and refresh
-tokens do not expire on the 7-day testing-mode clock** that restricted scopes
-impose. This is the practical payoff of the scope choice.
+ID of type "Desktop app"**, downloaded as `client_secret.json`. That file and the
+token it produces stay on your machine — both are gitignored, and neither
+belongs in a commit.
+
+Because `drive.file` is non-sensitive, **no verification review is required and
+refresh tokens do not expire on the 7-day testing-mode clock** that restricted
+scopes impose. This is the practical payoff of the scope choice.
 
 To bring an *existing* file under the app's control, either move it into the
 workspace folder or open it with this app; then `cwops grant <file_id|url>`
@@ -208,14 +290,15 @@ The invariants and the threat model: [docs/safety-model.md](docs/safety-model.md
 ## Testing
 
 ```bash
-pytest                                   # 240 passed, 1 skipped, ~7s, no network
-ruff check . && mypy                     # both clean
-pytest --cov=cwops                       # 89% overall; rules/ and store/ 96-100%
+pytest                                   # 248 passed, 1 skipped, ~5s, no network
+ruff check . && mypy                     # both clean (mypy's configured scope: src/cwops)
+pytest --cov=cwops                       # 89% overall; rules/ 96-100%
 ```
 
 | Suite | What it proves |
 |---|---|
-| `test_approval_gate.py` | No tool can create an approval · single-use · TTL · plan-hash binding · tampering invalidates · operator switch · world-changed detection |
+| `test_approval_gate.py` | No tool can create an approval · single-use · TTL · plan-hash binding · tampering invalidates · operator switch · world-changed detection · approval lifecycle state |
+| `test_cli.py` | Approval refused without an interactive terminal, `--yes` included, and the refusal audited · the human path still works |
 | `test_validate.py` | 23 adversarial plans from a JSON fixture — hallucinated IDs, path traversal, cycles, escapes — all rejected |
 | `test_ai_boundary.py` | A hostile organizer cannot cause an unsafe operation |
 | `test_dry_run.py` | Zero mutating calls across every read tool and every dry run — asserted against the fake's call log, plus a source-level check that only `apply.py` and `provision.py` mutate |
@@ -246,6 +329,26 @@ Documented as scope, not omissions:
   dropped and shown in full — with reason codes — in the proposal, the preview,
   and the audit log, so the human approves an explicit list. A plan with nothing
   left cannot be approved at all.
+
+## Threat-model boundaries
+
+Stated plainly, because a safety argument with no stated limits is marketing.
+Full version in [docs/safety-model.md](docs/safety-model.md).
+
+- **The operator is trusted.** Anyone who can type at the operator's terminal
+  can approve anything. The TTY requirement raises the bar to "can allocate a
+  PTY"; it is not a defence against something that already owns your session.
+- **The MCP client is assumed to be the intended one.** The server does not
+  authenticate its caller.
+- **The SQLite file is a local, single-user trust boundary**, not a tamper-proof
+  ledger: write access to it means write access to approvals. The audit log is
+  append-only by convention, not cryptographically chained.
+- **`drive.file` does not protect files already granted.** A file you opened
+  with this app is genuinely reachable — which is why workspace containment is a
+  separate control, tested separately.
+- **Prompt injection is mitigated structurally, not by prompting.** The system
+  prompt says to ignore embedded instructions, but the actual defence is that
+  the validator rejects whatever the model was persuaded to produce.
 
 ## Secrets
 
