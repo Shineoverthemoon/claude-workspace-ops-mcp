@@ -5,9 +5,11 @@ Least privilege is enforced twice here: the flow requests only drive.file, and
 broader scope. A stored token that somehow granted full Drive access is treated
 as a configuration error, not as a bonus.
 
-drive.file is Google's only non-sensitive Drive scope, so this app needs no
-verification review and its refresh tokens do not expire on the 7-day testing
-clock that restricted scopes impose.
+drive.file is Google's only non-sensitive Drive scope, so this app does not
+trigger the sensitive/restricted-scope verification review. That is independent
+of publishing status: while the OAuth app remains in Testing, Google issues
+refresh tokens with a limited lifetime (currently 7 days) whatever the scope, so
+the user re-runs `cwops auth` from time to time.
 """
 
 from __future__ import annotations

@@ -42,8 +42,16 @@ opened or shared with the app.
 | Can enumerate the user's whole Drive | yes | **no** |
 | Blast radius of a bug or injection | everything | the granted set |
 | Google verification review | required | **not required** |
-| Refresh-token lifetime in testing mode | **7 days** | normal |
+| Refresh-token lifetime while publishing status is Testing | **7 days** | **7 days** — unchanged by scope |
 | Can rename/move pre-existing files | any file | only granted files |
+
+Scope sensitivity and publishing status are independent, and the last row is the
+one that is easy to get wrong. `drive.file` is non-sensitive, so the
+sensitive/restricted-scope verification review does not apply — but while the
+OAuth app's publishing status is **Testing**, Google issues refresh tokens with a
+limited lifetime (currently 7 days) regardless of which scope was granted.
+Re-authorization with `cwops auth` is therefore periodically required; moving to
+production publishing is a separate process with its own requirements.
 
 The cost is real: a file must be brought under management before the app can
 touch it. That cost is the point — the reachable set is an explicit, auditable
