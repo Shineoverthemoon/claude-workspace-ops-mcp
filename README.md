@@ -5,8 +5,11 @@ inspect a workspace and propose how to tidy it; deterministic Python and an
 explicit human approval decide what actually happens.
 
 The interesting part is not that Claude can propose a folder structure. It's
-that **a fully compromised model cannot cause an unsafe write**, and the tests
-prove it rather than assert it.
+that **a compromised model operating through the MCP interface cannot authorize
+an unsafe write**, and the tests prove it rather than assert it. An attacker who
+already controls the operator's own terminal session is a different threat and
+sits outside that boundary — see
+[Threat-model boundaries](#threat-model-boundaries).
 
 `Python 3.11+` · `MCP` · `Google Drive API` · `OAuth drive.file` · `Anthropic API`
 · `Pydantic` · `SQLite` · `pytest` · `ruff` · `mypy`
@@ -199,9 +202,14 @@ ID of type "Desktop app"**, downloaded as `client_secret.json`. That file and th
 token it produces stay on your machine — both are gitignored, and neither
 belongs in a commit.
 
-Because `drive.file` is non-sensitive, **no verification review is required and
-refresh tokens do not expire on the 7-day testing-mode clock** that restricted
-scopes impose. This is the practical payoff of the scope choice.
+Because `drive.file` is non-sensitive, **the sensitive/restricted-scope
+verification review does not apply** — the practical payoff of keeping the
+authorization surface narrow.
+
+Scope and publishing status are separate concerns, though. While the OAuth app's
+publishing status is **Testing**, Google issues refresh tokens with a limited
+lifetime (currently 7 days), so you will periodically need to re-run
+`cwops auth`. Publishing to production has its own requirements.
 
 To bring an *existing* file under the app's control, either move it into the
 workspace folder or open it with this app; then `cwops grant <file_id|url>`
