@@ -23,7 +23,7 @@ from conftest import ROOT_ID, ToolCaller, make_caller
 from cwops.container import Container
 from cwops.drive import FakeDriveClient
 from cwops.errors import ApprovalInvalid, ApprovalRequired, PlanRejected, ProposalNotPending
-from cwops.models import CreateFolder, ProposalStatus, compute_plan_hash
+from cwops.models import ApprovalState, CreateFolder, ProposalStatus, compute_plan_hash
 from cwops.server import build_server
 
 APPROVER = "test-operator"
@@ -125,6 +125,42 @@ def test_consuming_an_approval_twice_is_refused_at_the_store(
     assert exc.value.context["cause"] == "already_consumed"
 
 
+# --- approval state stays legible after the fact ---------------------------
+
+
+def test_a_spent_approval_is_not_reported_as_never_approved(
+    call: ToolCaller, container: Container
+) -> None:
+    """History has to survive the apply: `consumed` is not the same as `none`."""
+    proposal_id = make_proposal(call)
+    assert call("get_proposal", proposal_id=proposal_id)["approval"]["state"] == "none"
+
+    container.proposals.approve(proposal_id, APPROVER)
+    assert call("get_proposal", proposal_id=proposal_id)["approval"]["state"] == "active"
+
+    result = call("apply_proposal", proposal_id=proposal_id, dry_run=False)
+    approval = result["approval"]
+    assert approval["state"] == "consumed"
+    assert approval["consumed"] is True
+    assert approval["approver"] == APPROVER
+    # Still not usable again - the state field explains history, it does not
+    # authorize anything.
+    assert approval["approved"] is False
+
+
+def test_an_expired_approval_reports_its_own_state(
+    call: ToolCaller, container: Container, clock: object
+) -> None:
+    proposal_id = make_proposal(call)
+    container.proposals.approve(proposal_id, APPROVER)
+    clock.advance(container.settings.approval_ttl_seconds + 1)  # type: ignore[attr-defined]
+
+    status = container.proposals.approval_status(container.proposals.get(proposal_id))
+    assert status.approved is False
+    assert status.state is ApprovalState.EXPIRED
+    assert status.consumed is False
+
+
 # --- approvals are bound to one plan --------------------------------------
 
 
@@ -177,6 +213,7 @@ def test_approval_status_reports_a_hash_mismatch(
     status = container.proposals.approval_status(altered)
     assert status.approved is False
     assert status.plan_hash_matches is False
+    assert status.state is ApprovalState.SUPERSEDED
 
 
 # --- approvals expire ------------------------------------------------------

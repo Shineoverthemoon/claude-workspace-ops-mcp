@@ -34,8 +34,10 @@ comes from configuration, never from the model, and re-validates every one.
 
 **3. Approval lives in a different trust zone than the agent.**
 An approval record is created only by `cwops approve` — a CLI command in a
-separate process. No MCP tool creates one, so an agent driving this server has
-no code path to approval. It can ask; it cannot produce.
+separate process that refuses to run without an interactive terminal, `--yes`
+included. No MCP tool creates one, and a shell-capable agent gets a pipe rather
+than a TTY, so an agent driving this server has no code path to approval. It can
+ask; it cannot produce.
 
 ---
 

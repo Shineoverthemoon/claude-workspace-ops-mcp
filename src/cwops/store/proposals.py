@@ -24,7 +24,7 @@ from ..errors import (
     ProposalNotFound,
     ProposalNotPending,
 )
-from ..models import Approval, ApprovalStatus, Proposal, ProposalStatus
+from ..models import Approval, ApprovalState, ApprovalStatus, Proposal, ProposalStatus
 from .db import Database, from_iso, to_iso
 
 
@@ -155,13 +155,25 @@ class ProposalStore:
     def approval_status(self, proposal: Proposal) -> ApprovalStatus:
         approval = self.latest_approval(proposal.id)
         if approval is None:
-            return ApprovalStatus(approved=False)
+            return ApprovalStatus(approved=False, state=ApprovalState.NONE)
         now = self._clock.now()
         hash_matches = approval.plan_hash == proposal.plan_hash
         consumed = approval.consumed_at is not None
         live = not consumed and approval.expires_at > now and hash_matches
+        # Consumed is checked before the other disqualifiers because it is the
+        # one terminal fact: a human approved this plan and it was spent. An
+        # applied proposal must not read like one that was never approved.
+        if live:
+            state = ApprovalState.ACTIVE
+        elif consumed:
+            state = ApprovalState.CONSUMED
+        elif not hash_matches:
+            state = ApprovalState.SUPERSEDED
+        else:
+            state = ApprovalState.EXPIRED
         return ApprovalStatus(
             approved=live,
+            state=state,
             approver=approval.approver,
             approved_at=approval.created_at,
             expires_at=approval.expires_at,

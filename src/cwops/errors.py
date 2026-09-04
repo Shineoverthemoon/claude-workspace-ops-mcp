@@ -44,6 +44,17 @@ class ApprovalRequired(CwopsError):
     reason_code = "approval_required"
 
 
+class ApprovalNotInteractive(CwopsError):
+    """`cwops approve` was invoked without a human at a terminal.
+
+    Approval is only meaningful if a person is present to give it, so a
+    non-interactive invocation - a spawned subprocess, a pipe, a CI step, an
+    agent shell - is refused rather than attributed to the OS user.
+    """
+
+    reason_code = "approval_not_interactive"
+
+
 class ApprovalInvalid(CwopsError):
     """An approval exists but is expired, consumed, or bound to a different plan."""
 

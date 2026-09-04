@@ -6,6 +6,12 @@ so approval lives in a different process and a different trust zone from the
 agent that wants it. That separation is the whole security argument: a model
 can ask for approval, but it has no mechanism to produce one.
 
+A separate process is not on its own a separate trust zone: an agent that can
+run shell commands can run this one. So `cwops approve` additionally requires an
+interactive terminal - a human present at stdin - and refuses otherwise, `--yes`
+included. Without that, the OS username would be recorded as the approver for a
+decision no human made.
+
 Unlike the MCP server, this is an ordinary CLI and prints to stdout.
 """
 
@@ -20,7 +26,7 @@ from typing import Any
 
 from .config import load_settings
 from .container import Container, build_container
-from .errors import CwopsError
+from .errors import ApprovalNotInteractive, CwopsError
 from .logging import configure_logging, new_correlation_id, set_correlation_id
 from .models import ProposalStatus
 
@@ -30,6 +36,23 @@ def _default_approver() -> str:
         return getpass.getuser()
     except Exception:  # pragma: no cover - platform dependent
         return "unknown"
+
+
+def _has_interactive_terminal() -> bool:
+    """True only if a human is sitting at this process's stdin.
+
+    ``isatty`` is exactly the distinction that matters: a console the user typed
+    into answers True, while the pipe handed to a spawned subprocess - an agent
+    shell, a CI step, ``echo y | cwops approve`` - answers False. It reports the
+    same thing on a Windows console as on a POSIX tty, so nothing here is
+    platform-specific. A missing or closed stream is treated as non-interactive:
+    fail closed.
+    """
+    stream = sys.stdin
+    try:
+        return stream is not None and bool(stream.isatty())
+    except (AttributeError, ValueError):  # detached or already-closed stdin
+        return False
 
 
 def _open(args: argparse.Namespace) -> Container:
@@ -42,6 +65,25 @@ def _open(args: argparse.Namespace) -> Container:
 
 
 def cmd_approve(container: Container, args: argparse.Namespace) -> int:
+    # Checked first, before the proposal is even loaded, and unconditionally:
+    # --yes suppresses the confirmation prompt, never this.
+    if not _has_interactive_terminal():
+        container.audit.record(
+            actor="cli",
+            tool="cwops_approve",
+            action="approve",
+            outcome="refused",
+            proposal_id=args.proposal_id,
+            reason_code=ApprovalNotInteractive.reason_code,
+            detail={"cause": "no_interactive_terminal"},
+        )
+        raise ApprovalNotInteractive(
+            "Approval requires an interactive terminal. stdin is not a TTY, so no "
+            "human is present to approve, and --yes does not substitute for one. "
+            "Run `cwops approve` yourself in a terminal.",
+            proposal_id=args.proposal_id,
+        )
+
     proposal = container.proposals.get(args.proposal_id)
     print(f"Proposal {proposal.id}  ({proposal.kind}, {len(proposal.ops)} operations)")
     print(f"Workspace root: {proposal.root_folder_id}")
@@ -86,9 +128,8 @@ def cmd_list(container: Container, args: argparse.Namespace) -> int:
         return 0
     for proposal in proposals:
         approval = container.proposals.approval_status(proposal)
-        flag = "approved" if approval.approved else "unapproved"
         print(
-            f"{proposal.id}  {proposal.status.value:<8}  {flag:<10}  "
+            f"{proposal.id}  {proposal.status.value:<8}  {approval.state.value:<10}  "
             f"{len(proposal.ops):>3} ops  {proposal.created_at.isoformat()}"
         )
     return 0
@@ -329,7 +370,12 @@ def build_parser() -> argparse.ArgumentParser:
     approve = sub.add_parser("approve", help="Approve a proposal (human gate)")
     approve.add_argument("proposal_id")
     approve.add_argument("--approver", default=None, help="Defaults to the OS user")
-    approve.add_argument("--yes", "-y", action="store_true", help="Skip the confirm prompt")
+    approve.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the confirm prompt; an interactive terminal is still required",
+    )
     approve.set_defaults(func=cmd_approve)
 
     listing = sub.add_parser("list", help="List proposals")

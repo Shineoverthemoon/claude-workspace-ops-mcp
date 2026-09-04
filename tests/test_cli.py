@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import io
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,24 @@ def cli_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     monkeypatch.setenv("CWOPS_ROOT_FOLDER_ID", ROOT_ID)
     monkeypatch.setenv("CWOPS_DB_PATH", str(db_path))
     return db_path
+
+
+class _FakeTerminal(io.StringIO):
+    """A stdin that claims to be a terminal, so the TTY gate can be tested."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+@pytest.fixture
+def at_a_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stand in for a human sitting at a console.
+
+    pytest replaces stdin with a non-TTY stream, which is exactly what a
+    spawned agent shell gets - so approval has to be opted into explicitly here,
+    the same way it is in real life.
+    """
+    monkeypatch.setattr(sys, "stdin", _FakeTerminal())
 
 
 def a_proposal(call: ToolCaller) -> str:
@@ -43,7 +63,11 @@ def test_demo_runs_the_whole_pipeline_offline(capsys: pytest.CaptureFixture[str]
 
 
 def test_approve_creates_an_approval_and_an_audit_row(
-    cli_env: Path, call: ToolCaller, container: Container, capsys: pytest.CaptureFixture[str]
+    cli_env: Path,
+    at_a_terminal: None,
+    call: ToolCaller,
+    container: Container,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     proposal_id = a_proposal(call)
     assert container.proposals.latest_approval(proposal_id) is None
@@ -60,7 +84,7 @@ def test_approve_creates_an_approval_and_an_audit_row(
 
 
 def test_approve_shows_the_preview_before_asking(
-    cli_env: Path, call: ToolCaller, capsys: pytest.CaptureFixture[str]
+    cli_env: Path, at_a_terminal: None, call: ToolCaller, capsys: pytest.CaptureFixture[str]
 ) -> None:
     proposal_id = a_proposal(call)
     main(["approve", proposal_id, "--yes"])
@@ -69,8 +93,66 @@ def test_approve_shows_the_preview_before_asking(
     assert "Invoice Q1 2026.pdf" in output
 
 
+# --- the approval gate needs a human at a terminal -------------------------
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        pytest.param([], id="plain"),
+        pytest.param(["--yes"], id="--yes"),
+        pytest.param(["--yes", "--approver", "mallory"], id="--yes-with-approver"),
+    ],
+)
+def test_approve_without_a_terminal_is_refused(
+    cli_env: Path,
+    call: ToolCaller,
+    container: Container,
+    extra: list[str],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A shell-capable agent gets a pipe, not a TTY, and cannot manufacture approval.
+
+    No `at_a_terminal` fixture here on purpose: pytest's stdin is not a TTY,
+    which is the same shape a spawned subprocess sees.
+    """
+    proposal_id = a_proposal(call)
+
+    assert main(["approve", proposal_id, *extra]) == 2
+
+    assert container.proposals.latest_approval(proposal_id) is None
+    assert "approval_not_interactive" in capsys.readouterr().err
+
+
+def test_the_refused_attempt_is_audited(
+    cli_env: Path, call: ToolCaller, container: Container
+) -> None:
+    proposal_id = a_proposal(call)
+    main(["approve", proposal_id, "--yes"])
+
+    rows = [row for row in container.audit.for_proposal(proposal_id) if row.outcome == "refused"]
+    assert rows[-1].reason_code == "approval_not_interactive"
+    assert rows[-1].approved_by is None
+
+
+def test_approve_at_a_terminal_still_works(
+    cli_env: Path,
+    at_a_terminal: None,
+    call: ToolCaller,
+    container: Container,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The human path is untouched: preview, typed confirmation, approval."""
+    proposal_id = a_proposal(call)
+    monkeypatch.setattr("builtins.input", lambda *_: "y")
+
+    assert main(["approve", proposal_id, "--approver", "alice"]) == 0
+    assert container.proposals.latest_approval(proposal_id) is not None
+
+
 def test_approve_declined_at_the_prompt_creates_nothing(
     cli_env: Path,
+    at_a_terminal: None,
     call: ToolCaller,
     container: Container,
     monkeypatch: pytest.MonkeyPatch,
@@ -82,7 +164,7 @@ def test_approve_declined_at_the_prompt_creates_nothing(
 
 
 def test_approve_refuses_a_plan_that_failed_validation(
-    cli_env: Path, call: ToolCaller, capsys: pytest.CaptureFixture[str]
+    cli_env: Path, at_a_terminal: None, call: ToolCaller, capsys: pytest.CaptureFixture[str]
 ) -> None:
     proposal = call(
         "propose_operations",
@@ -93,7 +175,7 @@ def test_approve_refuses_a_plan_that_failed_validation(
 
 
 def test_approve_reports_an_unknown_proposal_clearly(
-    cli_env: Path, capsys: pytest.CaptureFixture[str]
+    cli_env: Path, at_a_terminal: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["approve", "prop_nope", "--yes"]) == 2
     assert "proposal_not_found" in capsys.readouterr().err

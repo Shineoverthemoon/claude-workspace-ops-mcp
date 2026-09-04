@@ -29,6 +29,7 @@ Each maps to at least one test.
 | **I7** | Every tool call writes exactly one audit row | `tools/base.py` | `test_audit.py`, `test_approval_gate.py` |
 | **I8** | Every target must hold a recorded `drive.file` grant | `rules/validate.py`, `store/grants.py` | `test_validate.py`, `test_store.py` |
 | **I9** | Only `drive.file` is requested; a broader token is refused | `config.py`, `drive/auth.py` | `test_auth_scope.py` |
+| **I10** | `cwops approve` refuses to run without an interactive terminal, `--yes` included | `cli.py` | `test_cli.py` |
 
 ## Least privilege: why `drive.file`
 
@@ -65,6 +66,15 @@ separate process, run by a human with filesystem access.
 No token passes through the conversation, so there is nothing for the model to
 observe, guess, or replay. It is not that the model is *forbidden* from
 approving — there is no mechanism it could invoke.
+
+A separate process alone would not be enough: an agent that can run shell
+commands can run `cwops approve --yes`, and the OS username would be recorded as
+the approver for a decision no human made. So approval also requires an
+interactive terminal — `sys.stdin.isatty()`, checked before the proposal is even
+loaded and not bypassable by `--yes`. A spawned subprocess is handed a pipe, so
+it fails closed with `approval_not_interactive`, and the attempt is audited.
+This raises the bar to "can allocate a PTY"; it is not a defence against an
+attacker who already controls the human's own terminal session.
 
 Approvals are additionally:
 
@@ -117,10 +127,10 @@ Stated plainly rather than hidden:
 
 - **The MCP client is trusted to be the intended one.** This server assumes the
   transport endpoint is the user's own agent; it does not authenticate callers.
-- **The operator is trusted.** Anyone who can run `cwops approve` can approve
-  anything, and anyone with write access to the SQLite file can forge an
-  approval row. The database is a local, single-user trust boundary — not a
-  tamper-proof ledger.
+- **The operator is trusted.** Anyone who can type at the operator's terminal
+  can approve anything, and anyone with write access to the SQLite file can
+  forge an approval row. The database is a local, single-user trust boundary —
+  not a tamper-proof ledger.
 - **The audit log is append-only by convention**, not cryptographically chained.
 - **`drive.file` does not protect files already granted.** A file the user
   opened with this app is genuinely reachable. Workspace containment (I3) is a

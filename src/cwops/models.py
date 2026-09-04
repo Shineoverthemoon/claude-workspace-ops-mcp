@@ -178,8 +178,27 @@ class Proposal(BaseModel):
     notes: str | None = None
 
 
+class ApprovalState(StrEnum):
+    """What became of the human approval for a proposal.
+
+    ``ApprovalStatus.approved`` answers "may this plan run right now?", which is
+    false for a plan that ran successfully an hour ago. This field answers "what
+    happened?", so a spent approval stays distinguishable from one that was
+    never granted.
+    """
+
+    NONE = "none"
+    ACTIVE = "active"
+    CONSUMED = "consumed"
+    EXPIRED = "expired"
+    SUPERSEDED = "superseded"
+
+
 class ApprovalStatus(BaseModel):
-    approved: bool
+    approved: bool = Field(description="Usable right now: unspent, unexpired, plan matches")
+    state: ApprovalState = Field(
+        default=ApprovalState.NONE, description="Lifecycle of the approval, including history"
+    )
     approver: str | None = None
     approved_at: datetime | None = None
     expires_at: datetime | None = None

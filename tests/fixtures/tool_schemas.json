@@ -21,9 +21,22 @@
     },
     "output_schema": {
       "$defs": {
+        "ApprovalState": {
+          "description": "What became of the human approval for a proposal.\n\n``ApprovalStatus.approved`` answers \"may this plan run right now?\", which is\nfalse for a plan that ran successfully an hour ago. This field answers \"what\nhappened?\", so a spent approval stays distinguishable from one that was\nnever granted.",
+          "enum": [
+            "none",
+            "active",
+            "consumed",
+            "expired",
+            "superseded"
+          ],
+          "title": "ApprovalState",
+          "type": "string"
+        },
         "ApprovalStatus": {
           "properties": {
             "approved": {
+              "description": "Usable right now: unspent, unexpired, plan matches",
               "title": "Approved",
               "type": "boolean"
             },
@@ -81,6 +94,11 @@
               ],
               "default": null,
               "title": "Plan Hash Matches"
+            },
+            "state": {
+              "$ref": "#/$defs/ApprovalState",
+              "default": "none",
+              "description": "Lifecycle of the approval, including history"
             }
           },
           "required": [
@@ -847,9 +865,22 @@
     },
     "output_schema": {
       "$defs": {
+        "ApprovalState": {
+          "description": "What became of the human approval for a proposal.\n\n``ApprovalStatus.approved`` answers \"may this plan run right now?\", which is\nfalse for a plan that ran successfully an hour ago. This field answers \"what\nhappened?\", so a spent approval stays distinguishable from one that was\nnever granted.",
+          "enum": [
+            "none",
+            "active",
+            "consumed",
+            "expired",
+            "superseded"
+          ],
+          "title": "ApprovalState",
+          "type": "string"
+        },
         "ApprovalStatus": {
           "properties": {
             "approved": {
+              "description": "Usable right now: unspent, unexpired, plan matches",
               "title": "Approved",
               "type": "boolean"
             },
@@ -907,6 +938,11 @@
               ],
               "default": null,
               "title": "Plan Hash Matches"
+            },
+            "state": {
+              "$ref": "#/$defs/ApprovalState",
+              "default": "none",
+              "description": "Lifecycle of the approval, including history"
             }
           },
           "required": [
